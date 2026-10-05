@@ -29,7 +29,15 @@ jobs:
           echo "=============================================="
 
       # --------------------------------------------------
-      # 2. INSTALL SALESFORCE CLI
+      # 2. SETUP NODE.JS
+      # --------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # --------------------------------------------------
+      # 3. INSTALL SALESFORCE CLI
       # --------------------------------------------------
       - name: Install Salesforce CLI
         run: |
@@ -44,7 +52,7 @@ jobs:
           sf --version
 
       # --------------------------------------------------
-      # 3. AUTHENTICATE
+      # 4. AUTHENTICATE TO QA
       # --------------------------------------------------
       - name: Authenticate to QA
         run: |
@@ -62,7 +70,49 @@ jobs:
           echo "Authentication successful."
 
       # --------------------------------------------------
-      # 4. SHOW METADATA
+      # 5. PARSE APEX TESTS FROM PR
+      # --------------------------------------------------
+      - name: Parse Apex tests from PR
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          echo "=============================================="
+          echo "       PARSING PR TEST CONFIGURATION"
+          echo "=============================================="
+
+          node scripts/parsePR.js
+
+          TESTS=$(cat testsToRun.txt)
+
+          echo ""
+          echo "Tests extracted from PR:"
+          echo "$TESTS"
+          echo ""
+
+          if [ "$TESTS" = "all" ]; then
+
+            echo "TEST_LEVEL=RunLocalTests" >> $GITHUB_ENV
+            echo "TEST_CLASSES=" >> $GITHUB_ENV
+
+            echo "=============================================="
+            echo "Test Mode : RunLocalTests"
+            echo "Tests     : ALL LOCAL TESTS"
+            echo "=============================================="
+
+          else
+
+            echo "TEST_LEVEL=RunSpecifiedTests" >> $GITHUB_ENV
+            echo "TEST_CLASSES=$TESTS" >> $GITHUB_ENV
+
+            echo "=============================================="
+            echo "Test Mode : RunSpecifiedTests"
+            echo "Tests     : $TESTS"
+            echo "=============================================="
+
+          fi
+
+      # --------------------------------------------------
+      # 6. SHOW METADATA
       # --------------------------------------------------
       - name: Show metadata being validated
         run: |
@@ -76,30 +126,49 @@ jobs:
           echo "=============================================="
 
       # --------------------------------------------------
-      # 5. VALIDATE
+      # 7. VALIDATE SALESFORCE DEPLOYMENT
       # --------------------------------------------------
       - name: Validate Salesforce deployment
         run: |
           echo "=============================================="
           echo "      STARTING PR VALIDATION"
           echo "=============================================="
+
           echo "Source Branch   : ${{ github.head_ref }}"
           echo "Target Branch   : develop"
           echo "Target Org      : QA"
           echo "Validation Type : Dry Run"
-          echo "Test Level      : RunSpecifiedTests"
-          echo "Tests           : EmployeeTest"
+          echo "Test Level      : $TEST_LEVEL"
+
+          if [ "$TEST_LEVEL" = "RunSpecifiedTests" ]; then
+            echo "Tests           : $TEST_CLASSES"
+          else
+            echo "Tests           : ALL LOCAL TESTS"
+          fi
+
           echo "=============================================="
           echo ""
           echo "Starting Salesforce validation..."
           echo ""
 
-          sf project deploy start \
-            --target-org QA_ORG \
-            --dry-run \
-            --test-level RunSpecifiedTests \
-            --tests EmployeeTest \
-            --wait 30
+          if [ "$TEST_LEVEL" = "RunSpecifiedTests" ]; then
+
+            sf project deploy start \
+              --target-org QA_ORG \
+              --dry-run \
+              --test-level RunSpecifiedTests \
+              --tests "$TEST_CLASSES" \
+              --wait 30
+
+          else
+
+            sf project deploy start \
+              --target-org QA_ORG \
+              --dry-run \
+              --test-level RunLocalTests \
+              --wait 30
+
+          fi
 
           echo ""
           echo "=============================================="
@@ -107,4 +176,4 @@ jobs:
           echo "=============================================="
           echo "The changes passed Salesforce validation."
           echo "The PR is safe to proceed to the next gate."
-          echo "=============================================="git status
+          echo "=============================================="
