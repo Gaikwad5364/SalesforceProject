@@ -1,0 +1,35 @@
+name: PR to Develop
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Salesforce CLI
+        run: |
+          npm install --global @salesforce/cli
+          sf --version
+
+      - name: Authenticate to Salesforce
+        run: |
+          echo "${{ secrets.QA_SF_AUTH_URL }}" > auth-url.txt
+          sf org login sfdx-url \
+            --sfdx-url-file auth-url.txt \
+            --alias QA_ORG
+
+      - name: Validate Salesforce deployment
+        run: |
+          sf project deploy start \
+            --target-org QA_ORG \
+            --dry-run \
+            --test-level RunSpecifiedTests \
+            --tests EmployeeTest \
+            --wait 10

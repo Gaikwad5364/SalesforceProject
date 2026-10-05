@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField>
+    <fullName>Employee_ID__c</fullName>
+    <type>Text</type>
+    <length>20</length>
+    <inlineHelpText>Employee ID</inlineHelpText>
+    <required>false</required>
+    <unique>true</unique>
+    <externalId>false</externalId>
+    <description>Stores Employee ID</description>
+    <label>Employee ID</label>
+    <securityClassification>Internal</securityClassification>
+</CustomField>
