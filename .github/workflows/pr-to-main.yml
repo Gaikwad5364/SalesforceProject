@@ -1,0 +1,110 @@
+name: PR to Main
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # --------------------------------------------------
+      # 1. CHECKOUT
+      # --------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show validation information
+        run: |
+          echo "=============================================="
+          echo "        SALESFORCE PRODUCTION VALIDATION"
+          echo "=============================================="
+          echo "Source Branch : ${{ github.head_ref }}"
+          echo "Target Branch : main"
+          echo "Target Org    : PROD"
+          echo "Trigger       : Pull Request"
+          echo "=============================================="
+
+      # --------------------------------------------------
+      # 2. INSTALL SALESFORCE CLI
+      # --------------------------------------------------
+      - name: Install Salesforce CLI
+        run: |
+          echo "=============================================="
+          echo "Installing Salesforce CLI"
+          echo "=============================================="
+
+          npm install --global @salesforce/cli
+
+          echo ""
+          echo "Salesforce CLI version:"
+          sf --version
+
+      # --------------------------------------------------
+      # 3. AUTHENTICATE
+      # --------------------------------------------------
+      - name: Authenticate to PROD
+        run: |
+          echo "=============================================="
+          echo "Authenticating to PROD Salesforce Org"
+          echo "=============================================="
+
+          echo "${{ secrets.PROD_SF_AUTH_URL }}" > auth-url.txt
+
+          sf org login sfdx-url \
+            --sfdx-url-file auth-url.txt \
+            --alias PROD_ORG
+
+          echo ""
+          echo "Authentication successful."
+
+      # --------------------------------------------------
+      # 4. SHOW METADATA
+      # --------------------------------------------------
+      - name: Show metadata being validated
+        run: |
+          echo "=============================================="
+          echo "       METADATA TO BE VALIDATED"
+          echo "=============================================="
+
+          find force-app/main/default -type f
+
+          echo ""
+          echo "=============================================="
+
+      # --------------------------------------------------
+      # 5. VALIDATE
+      # --------------------------------------------------
+      - name: Validate Salesforce deployment
+        run: |
+          echo "=============================================="
+          echo "      STARTING PRODUCTION VALIDATION"
+          echo "=============================================="
+          echo "Source Branch   : ${{ github.head_ref }}"
+          echo "Target Branch   : main"
+          echo "Target Org      : PROD"
+          echo "Validation Type : Dry Run"
+          echo "Test Level      : RunSpecifiedTests"
+          echo "Tests           : EmployeeTest"
+          echo "=============================================="
+          echo ""
+          echo "Starting Salesforce validation..."
+          echo ""
+
+          sf project deploy start \
+            --target-org PROD_ORG \
+            --dry-run \
+            --test-level RunSpecifiedTests \
+            --tests EmployeeTest \
+            --wait 30
+
+          echo ""
+          echo "=============================================="
+          echo "     PRODUCTION VALIDATION SUCCESSFUL"
+          echo "=============================================="
+          echo "The release passed production validation."
+          echo "The PR can proceed to the merge gate."
+          echo "=============================================="

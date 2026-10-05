@@ -1,0 +1,135 @@
+name: Deploy to PROD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # --------------------------------------------------
+      # 1. CHECKOUT
+      # --------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show deployment information
+        run: |
+          echo "=============================================="
+          echo "        SALESFORCE PROD DEPLOYMENT"
+          echo "=============================================="
+          echo "Branch      : main"
+          echo "Target      : PROD"
+          echo "Trigger     : Push to main"
+          echo "=============================================="
+
+      # --------------------------------------------------
+      # 2. INSTALL SALESFORCE CLI
+      # --------------------------------------------------
+      - name: Install Salesforce CLI
+        run: |
+          echo "=============================================="
+          echo "Installing Salesforce CLI"
+          echo "=============================================="
+
+          npm install --global @salesforce/cli
+
+          echo ""
+          echo "Salesforce CLI version:"
+          sf --version
+
+      # --------------------------------------------------
+      # 3. AUTHENTICATE
+      # --------------------------------------------------
+      - name: Authenticate to PROD
+        run: |
+          echo "=============================================="
+          echo "Authenticating to PROD Salesforce Org"
+          echo "=============================================="
+
+          echo "${{ secrets.PROD_SF_AUTH_URL }}" > auth-url.txt
+
+          sf org login sfdx-url \
+            --sfdx-url-file auth-url.txt \
+            --alias PROD_ORG
+
+          echo ""
+          echo "Authentication successful."
+
+      # --------------------------------------------------
+      # 4. VALIDATE
+      # --------------------------------------------------
+      - name: Validate deployment to PROD
+        run: |
+          echo "=============================================="
+          echo "      STARTING PROD VALIDATION"
+          echo "=============================================="
+          echo "Branch          : main"
+          echo "Target Org      : PROD"
+          echo "Validation Type : Dry Run"
+          echo "Test Level      : RunSpecifiedTests"
+          echo "Tests           : EmployeeTest"
+          echo "=============================================="
+          echo ""
+          echo "Salesforce metadata being validated:"
+          find force-app/main/default -type f
+          echo ""
+          echo "Starting Salesforce validation..."
+          echo ""
+
+          sf project deploy start \
+            --target-org PROD_ORG \
+            --dry-run \
+            --test-level RunSpecifiedTests \
+            --tests EmployeeTest \
+            --wait 30 \
+            --json > deploy-result.json
+
+          echo ""
+          echo "=============================================="
+          echo "        PROD VALIDATION COMPLETED"
+          echo "=============================================="
+
+      # --------------------------------------------------
+      # 5. EXTRACT DEPLOYMENT ID
+      # --------------------------------------------------
+      - name: Extract Deployment ID
+        run: |
+          echo "=============================================="
+          echo "Extracting Validation Deployment ID"
+          echo "=============================================="
+
+          DEPLOYMENT_ID=$(jq -r '.result.id' deploy-result.json)
+
+          echo "Deployment ID: $DEPLOYMENT_ID"
+
+          echo "DEPLOYMENT_ID=$DEPLOYMENT_ID" >> $GITHUB_ENV
+
+      # --------------------------------------------------
+      # 6. QUICK DEPLOY
+      # --------------------------------------------------
+      - name: Quick Deploy to PROD
+        run: |
+          echo "=============================================="
+          echo "        STARTING QUICK DEPLOY TO PROD"
+          echo "=============================================="
+          echo "Deployment ID : $DEPLOYMENT_ID"
+          echo "Target Org    : PROD"
+          echo "=============================================="
+          echo ""
+          echo "Deploying previously validated metadata..."
+          echo ""
+
+          sf project deploy quick \
+            --job-id $DEPLOYMENT_ID \
+            --target-org PROD_ORG \
+            --wait 30
+
+          echo ""
+          echo "=============================================="
+          echo "        PROD DEPLOYMENT SUCCESSFUL"
+          echo "=============================================="

@@ -1,0 +1,135 @@
+name: Deploy to QA
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # --------------------------------------------------
+      # 1. CHECKOUT
+      # --------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show deployment information
+        run: |
+          echo "=============================================="
+          echo "        SALESFORCE QA DEPLOYMENT"
+          echo "=============================================="
+          echo "Branch      : develop"
+          echo "Target      : QA"
+          echo "Trigger     : Push to develop"
+          echo "=============================================="
+
+      # --------------------------------------------------
+      # 2. INSTALL SALESFORCE CLI
+      # --------------------------------------------------
+      - name: Install Salesforce CLI
+        run: |
+          echo "=============================================="
+          echo "Installing Salesforce CLI"
+          echo "=============================================="
+
+          npm install --global @salesforce/cli
+
+          echo ""
+          echo "Salesforce CLI version:"
+          sf --version
+
+      # --------------------------------------------------
+      # 3. AUTHENTICATE
+      # --------------------------------------------------
+      - name: Authenticate to QA
+        run: |
+          echo "=============================================="
+          echo "Authenticating to QA Salesforce Org"
+          echo "=============================================="
+
+          echo "${{ secrets.QA_SF_AUTH_URL }}" > auth-url.txt
+
+          sf org login sfdx-url \
+            --sfdx-url-file auth-url.txt \
+            --alias QA_ORG
+
+          echo ""
+          echo "Authentication successful."
+
+      # --------------------------------------------------
+      # 4. VALIDATE
+      # --------------------------------------------------
+      - name: Validate deployment to QA
+        run: |
+          echo "=============================================="
+          echo "        STARTING QA VALIDATION"
+          echo "=============================================="
+          echo "Branch          : develop"
+          echo "Target Org      : QA"
+          echo "Validation Type : Dry Run"
+          echo "Test Level      : RunSpecifiedTests"
+          echo "Tests           : EmployeeTest"
+          echo "=============================================="
+          echo ""
+          echo "Salesforce metadata being validated:"
+          find force-app/main/default -type f
+          echo ""
+          echo "Starting Salesforce validation..."
+          echo ""
+
+          sf project deploy start \
+            --target-org QA_ORG \
+            --dry-run \
+            --test-level RunSpecifiedTests \
+            --tests EmployeeTest \
+            --wait 30 \
+            --json > deploy-result.json
+
+          echo ""
+          echo "=============================================="
+          echo "        QA VALIDATION COMPLETED"
+          echo "=============================================="
+
+      # --------------------------------------------------
+      # 5. EXTRACT DEPLOYMENT ID
+      # --------------------------------------------------
+      - name: Extract Deployment ID
+        run: |
+          echo "=============================================="
+          echo "Extracting Validation Deployment ID"
+          echo "=============================================="
+
+          DEPLOYMENT_ID=$(jq -r '.result.id' deploy-result.json)
+
+          echo "Deployment ID: $DEPLOYMENT_ID"
+
+          echo "DEPLOYMENT_ID=$DEPLOYMENT_ID" >> $GITHUB_ENV
+
+      # --------------------------------------------------
+      # 6. QUICK DEPLOY
+      # --------------------------------------------------
+      - name: Quick Deploy to QA
+        run: |
+          echo "=============================================="
+          echo "        STARTING QUICK DEPLOY TO QA"
+          echo "=============================================="
+          echo "Deployment ID : $DEPLOYMENT_ID"
+          echo "Target Org    : QA"
+          echo "=============================================="
+          echo ""
+          echo "Deploying previously validated metadata..."
+          echo ""
+
+          sf project deploy quick \
+            --job-id $DEPLOYMENT_ID \
+            --target-org QA_ORG \
+            --wait 30
+
+          echo ""
+          echo "=============================================="
+          echo "        QA DEPLOYMENT SUCCESSFUL"
+          echo "=============================================="

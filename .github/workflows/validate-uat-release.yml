@@ -1,0 +1,110 @@
+name: Validate Release for UAT
+
+on:
+  push:
+    branches:
+      - 'release/*'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # --------------------------------------------------
+      # 1. CHECKOUT
+      # --------------------------------------------------
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+
+      - name: Show validation information
+        run: |
+          echo "=============================================="
+          echo "       UAT RELEASE VALIDATION"
+          echo "=============================================="
+          echo "Release Branch : ${{ github.ref_name }}"
+          echo "Target Org     : UAT"
+          echo "Action         : Validate Only"
+          echo "Trigger        : Release Branch Push"
+          echo "=============================================="
+
+      # --------------------------------------------------
+      # 2. INSTALL SALESFORCE CLI
+      # --------------------------------------------------
+      - name: Install Salesforce CLI
+        run: |
+          echo "=============================================="
+          echo "Installing Salesforce CLI"
+          echo "=============================================="
+
+          npm install --global @salesforce/cli
+
+          echo ""
+          echo "Salesforce CLI version:"
+          sf --version
+
+      # --------------------------------------------------
+      # 3. AUTHENTICATE
+      # --------------------------------------------------
+      - name: Authenticate to UAT
+        run: |
+          echo "=============================================="
+          echo "Authenticating to UAT Salesforce Org"
+          echo "=============================================="
+
+          echo "${{ secrets.UAT_SF_AUTH_URL }}" > auth-url.txt
+
+          sf org login sfdx-url \
+            --sfdx-url-file auth-url.txt \
+            --alias UAT_ORG
+
+          echo ""
+          echo "Authentication successful."
+
+      # --------------------------------------------------
+      # 4. SHOW METADATA
+      # --------------------------------------------------
+      - name: Show metadata being validated
+        run: |
+          echo "=============================================="
+          echo "       METADATA TO BE VALIDATED"
+          echo "=============================================="
+
+          find force-app/main/default -type f
+
+          echo ""
+          echo "=============================================="
+
+      # --------------------------------------------------
+      # 5. VALIDATE ONLY
+      # --------------------------------------------------
+      - name: Validate release against UAT
+        run: |
+          echo "=============================================="
+          echo "       STARTING UAT VALIDATION"
+          echo "=============================================="
+          echo "Release Branch   : ${{ github.ref_name }}"
+          echo "Target Org       : UAT"
+          echo "Validation Type  : Dry Run"
+          echo "Test Level       : RunSpecifiedTests"
+          echo "Tests            : EmployeeTest"
+          echo "Deployment       : NO"
+          echo "=============================================="
+          echo ""
+          echo "Starting Salesforce validation..."
+          echo ""
+
+          sf project deploy start \
+            --target-org UAT_ORG \
+            --dry-run \
+            --test-level RunSpecifiedTests \
+            --tests EmployeeTest \
+            --wait 30
+
+          echo ""
+          echo "=============================================="
+          echo "       UAT VALIDATION SUCCESSFUL"
+          echo "=============================================="
+          echo "Release passed UAT validation."
+          echo "No changes were deployed to UAT."
+          echo "=============================================="
