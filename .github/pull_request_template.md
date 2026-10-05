@@ -16,7 +16,7 @@ Apex::[TestClass1,TestClass2]::Apex
 Example:
 Apex::[EmployeeTest,LeaveRequestTest]::Apex
 
-If you want to run all local Apex tests, leave:
+If you want to run all local Apex tests:
 Apex::[all]::Apex
 -->
 
