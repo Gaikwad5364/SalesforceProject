@@ -74,17 +74,22 @@ jobs:
 
           node scripts/parsePR.js
 
-          TESTS=$(cat testsToRun.txt)
+          TESTS=$(cat testsToRun.txt | tr -d '\r' | xargs)
 
           echo ""
           echo "Tests extracted from PR:"
           echo "$TESTS"
           echo ""
 
-          if [ "$TESTS" = "all" ]; then
+          if [ -z "$TESTS" ]; then
+            echo "ERROR: No Apex test configuration was found."
+            exit 1
+          fi
 
-            echo "TEST_LEVEL=RunLocalTests" >> $GITHUB_ENV
-            echo "TEST_CLASSES=" >> $GITHUB_ENV
+          if [ "${TESTS,,}" = "all" ]; then
+
+            echo "TEST_LEVEL=RunLocalTests" >> "$GITHUB_ENV"
+            echo "TEST_CLASSES=" >> "$GITHUB_ENV"
 
             echo "=============================================="
             echo "Test Mode : RunLocalTests"
@@ -93,8 +98,8 @@ jobs:
 
           else
 
-            echo "TEST_LEVEL=RunSpecifiedTests" >> $GITHUB_ENV
-            echo "TEST_CLASSES=$TESTS" >> $GITHUB_ENV
+            echo "TEST_LEVEL=RunSpecifiedTests" >> "$GITHUB_ENV"
+            echo "TEST_CLASSES=$TESTS" >> "$GITHUB_ENV"
 
             echo "=============================================="
             echo "Test Mode : RunSpecifiedTests"
@@ -145,11 +150,38 @@ jobs:
 
           if [ "$TEST_LEVEL" = "RunSpecifiedTests" ]; then
 
+            # Convert:
+            # EmployeeTest,LeaveRequestTest
+            #
+            # into:
+            # --tests EmployeeTest --tests LeaveRequestTest
+
+            IFS=',' read -ra TEST_ARRAY <<< "$TEST_CLASSES"
+
+            TEST_ARGS=()
+
+            for TEST_CLASS in "${TEST_ARRAY[@]}"; do
+
+              TEST_CLASS=$(echo "$TEST_CLASS" | xargs)
+
+              if [ -z "$TEST_CLASS" ]; then
+                echo "ERROR: Empty Apex test class name detected."
+                exit 1
+              fi
+
+              TEST_ARGS+=(--tests "$TEST_CLASS")
+
+            done
+
+            echo "Salesforce test arguments:"
+            printf '  %s\n' "${TEST_ARGS[@]}"
+            echo ""
+
             sf project deploy start \
               --target-org QA_ORG \
               --dry-run \
               --test-level RunSpecifiedTests \
-              --tests "$TEST_CLASSES" \
+              "${TEST_ARGS[@]}" \
               --wait 30
 
           else
@@ -166,6 +198,7 @@ jobs:
           echo "=============================================="
           echo "       PR VALIDATION SUCCESSFUL"
           echo "=============================================="
-          echo "The changes passed Salesforce validation."
+          echo "The Salesforce deployment validation succeeded."
+          echo "The requested Apex tests were executed successfully."
           echo "The PR is safe to proceed to the next gate."
           echo "=============================================="
