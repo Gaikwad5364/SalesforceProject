@@ -1,9 +1,20 @@
-name: Deploy to QA
+name: Deploy to UAT
 
 on:
-  push:
-    branches:
-      - develop
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Release branch to deploy"
+        required: true
+        type: string
+
+      action:
+        description: "Choose the action"
+        required: true
+        type: choice
+        options:
+          - validate
+          - validate-and-deploy
 
 jobs:
   deploy:
@@ -14,17 +25,19 @@ jobs:
       # --------------------------------------------------
       # 1. CHECKOUT
       # --------------------------------------------------
-      - name: Checkout code
+      - name: Checkout selected release branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
 
       - name: Show deployment information
         run: |
           echo "=============================================="
-          echo "        SALESFORCE QA DEPLOYMENT"
+          echo "        SALESFORCE UAT DEPLOYMENT"
           echo "=============================================="
-          echo "Branch      : develop"
-          echo "Target      : QA"
-          echo "Trigger     : Push to develop"
+          echo "Release Branch : ${{ inputs.branch }}"
+          echo "Action         : ${{ inputs.action }}"
+          echo "Target         : UAT"
           echo "=============================================="
 
       # --------------------------------------------------
@@ -45,17 +58,17 @@ jobs:
       # --------------------------------------------------
       # 3. AUTHENTICATE
       # --------------------------------------------------
-      - name: Authenticate to QA
+      - name: Authenticate to UAT
         run: |
           echo "=============================================="
-          echo "Authenticating to QA Salesforce Org"
+          echo "Authenticating to UAT Salesforce Org"
           echo "=============================================="
 
-          echo "${{ secrets.QA_SF_AUTH_URL }}" > auth-url.txt
+          echo "${{ secrets.UAT_SF_AUTH_URL }}" > auth-url.txt
 
           sf org login sfdx-url \
             --sfdx-url-file auth-url.txt \
-            --alias QA_ORG
+            --alias UAT_ORG
 
           echo ""
           echo "Authentication successful."
@@ -63,13 +76,13 @@ jobs:
       # --------------------------------------------------
       # 4. VALIDATE
       # --------------------------------------------------
-      - name: Validate deployment to QA
+      - name: Validate deployment to UAT
         run: |
           echo "=============================================="
-          echo "        STARTING QA VALIDATION"
+          echo "        STARTING UAT VALIDATION"
           echo "=============================================="
-          echo "Branch          : develop"
-          echo "Target Org      : QA"
+          echo "Branch          : ${{ inputs.branch }}"
+          echo "Target Org      : UAT"
           echo "Validation Type : Dry Run"
           echo "Test Level      : RunSpecifiedTests"
           echo "Tests           : EmployeeTest"
@@ -82,7 +95,7 @@ jobs:
           echo ""
 
           sf project deploy start \
-            --target-org QA_ORG \
+            --target-org UAT_ORG \
             --dry-run \
             --test-level RunSpecifiedTests \
             --tests EmployeeTest \
@@ -91,13 +104,14 @@ jobs:
 
           echo ""
           echo "=============================================="
-          echo "        QA VALIDATION COMPLETED"
+          echo "        UAT VALIDATION COMPLETED"
           echo "=============================================="
 
       # --------------------------------------------------
       # 5. EXTRACT DEPLOYMENT ID
       # --------------------------------------------------
       - name: Extract Deployment ID
+        if: ${{ inputs.action == 'validate-and-deploy' }}
         run: |
           echo "=============================================="
           echo "Extracting Validation Deployment ID"
@@ -112,13 +126,14 @@ jobs:
       # --------------------------------------------------
       # 6. QUICK DEPLOY
       # --------------------------------------------------
-      - name: Quick Deploy to QA
+      - name: Quick Deploy to UAT
+        if: ${{ inputs.action == 'validate-and-deploy' }}
         run: |
           echo "=============================================="
-          echo "        STARTING QUICK DEPLOY TO QA"
+          echo "        STARTING QUICK DEPLOY TO UAT"
           echo "=============================================="
           echo "Deployment ID : $DEPLOYMENT_ID"
-          echo "Target Org    : QA"
+          echo "Target Org    : UAT"
           echo "=============================================="
           echo ""
           echo "Deploying previously validated metadata..."
@@ -126,10 +141,10 @@ jobs:
 
           sf project deploy quick \
             --job-id $DEPLOYMENT_ID \
-            --target-org QA_ORG \
+            --target-org UAT_ORG \
             --wait 30
 
           echo ""
           echo "=============================================="
-          echo "        QA DEPLOYMENT SUCCESSFUL"
+          echo "        UAT DEPLOYMENT SUCCESSFUL"
           echo "=============================================="
