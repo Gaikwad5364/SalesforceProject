@@ -36,7 +36,7 @@ jobs:
           echo "Installing Salesforce CLI"
           echo "=============================================="
 
-          npm install --global @salesforce/cli
+          npm install --global @salesforce/cli@latest
 
           echo ""
           echo "Salesforce CLI version:"
@@ -71,8 +71,8 @@ jobs:
           echo "Branch          : develop"
           echo "Target Org      : QA"
           echo "Validation Type : Dry Run"
-          echo "Test Level      : RunSpecifiedTests"
-          echo "Tests           : EmployeeTest"
+          echo "Test Level      : RunLocalTests"
+          echo "Tests           : ALL LOCAL TESTS"
           echo "=============================================="
           echo ""
           echo "Salesforce metadata being validated:"
@@ -84,8 +84,7 @@ jobs:
           sf project deploy start \
             --target-org QA_ORG \
             --dry-run \
-            --test-level RunSpecifiedTests \
-            --tests EmployeeTest \
+            --test-level RunLocalTests \
             --wait 30 \
             --json > deploy-result.json
 
