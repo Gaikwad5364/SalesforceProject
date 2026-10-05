@@ -1,0 +1,49 @@
+name: Deploy to QA
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Salesforce CLI
+        run: |
+          npm install --global @salesforce/cli
+          sf --version
+
+      - name: Authenticate to QA
+        run: |
+          echo "${{ secrets.QA_SF_AUTH_URL }}" > auth-url.txt
+          sf org login sfdx-url \
+            --sfdx-url-file auth-url.txt \
+            --alias QA_ORG
+
+      - name: Validate deployment to QA
+        run: |
+          sf project deploy start \
+            --target-org QA_ORG \
+            --dry-run \
+            --test-level RunSpecifiedTests \
+            --tests EmployeeTest \
+            --wait 10 \
+            --json > deploy-result.json
+
+      - name: Extract Deployment ID
+        run: |
+          DEPLOYMENT_ID=$(jq -r '.result.id' deploy-result.json)
+          echo "DEPLOYMENT_ID=$DEPLOYMENT_ID" >> $GITHUB_ENV
+          echo "Deployment ID: $DEPLOYMENT_ID"
+
+      - name: Quick Deploy to QA
+        run: |
+          sf project deploy quick \
+            --job-id $DEPLOYMENT_ID \
+            --target-org QA_ORG \
+            --wait 30
