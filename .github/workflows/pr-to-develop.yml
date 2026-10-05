@@ -29,15 +29,7 @@ jobs:
           echo "=============================================="
 
       # --------------------------------------------------
-      # 2. SETUP NODE.JS
-      # --------------------------------------------------
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      # --------------------------------------------------
-      # 3. INSTALL SALESFORCE CLI
+      # 2. INSTALL SALESFORCE CLI
       # --------------------------------------------------
       - name: Install Salesforce CLI
         run: |
@@ -45,14 +37,14 @@ jobs:
           echo "Installing Salesforce CLI"
           echo "=============================================="
 
-          npm install --global @salesforce/cli
+          npm install --global @salesforce/cli@latest
 
           echo ""
           echo "Salesforce CLI version:"
           sf --version
 
       # --------------------------------------------------
-      # 4. AUTHENTICATE TO QA
+      # 3. AUTHENTICATE TO QA
       # --------------------------------------------------
       - name: Authenticate to QA
         run: |
@@ -70,7 +62,7 @@ jobs:
           echo "Authentication successful."
 
       # --------------------------------------------------
-      # 5. PARSE APEX TESTS FROM PR
+      # 4. PARSE APEX TESTS FROM PR
       # --------------------------------------------------
       - name: Parse Apex tests from PR
         env:
@@ -112,7 +104,7 @@ jobs:
           fi
 
       # --------------------------------------------------
-      # 6. SHOW METADATA
+      # 5. SHOW METADATA
       # --------------------------------------------------
       - name: Show metadata being validated
         run: |
@@ -126,7 +118,7 @@ jobs:
           echo "=============================================="
 
       # --------------------------------------------------
-      # 7. VALIDATE SALESFORCE DEPLOYMENT
+      # 6. VALIDATE SALESFORCE DEPLOYMENT
       # --------------------------------------------------
       - name: Validate Salesforce deployment
         run: |
