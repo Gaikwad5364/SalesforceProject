@@ -1,9 +1,9 @@
-name: PR to Develop
+name: PR to Main
 
 on:
   pull_request:
     branches:
-      - develop
+      - main
 
 jobs:
   validate:
@@ -20,11 +20,11 @@ jobs:
       - name: Show validation information
         run: |
           echo "=============================================="
-          echo "        SALESFORCE PR VALIDATION"
+          echo "        SALESFORCE PRODUCTION VALIDATION"
           echo "=============================================="
           echo "Source Branch : ${{ github.head_ref }}"
-          echo "Target Branch : develop"
-          echo "Target Org    : QA"
+          echo "Target Branch : main"
+          echo "Target Org    : PROD"
           echo "Trigger       : Pull Request"
           echo "=============================================="
 
@@ -46,17 +46,17 @@ jobs:
       # --------------------------------------------------
       # 3. AUTHENTICATE
       # --------------------------------------------------
-      - name: Authenticate to QA
+      - name: Authenticate to PROD
         run: |
           echo "=============================================="
-          echo "Authenticating to QA Salesforce Org"
+          echo "Authenticating to PROD Salesforce Org"
           echo "=============================================="
 
-          echo "${{ secrets.QA_SF_AUTH_URL }}" > auth-url.txt
+          echo "${{ secrets.PROD_SF_AUTH_URL }}" > auth-url.txt
 
           sf org login sfdx-url \
             --sfdx-url-file auth-url.txt \
-            --alias QA_ORG
+            --alias PROD_ORG
 
           echo ""
           echo "Authentication successful."
@@ -81,11 +81,11 @@ jobs:
       - name: Validate Salesforce deployment
         run: |
           echo "=============================================="
-          echo "      STARTING PR VALIDATION"
+          echo "      STARTING PRODUCTION VALIDATION"
           echo "=============================================="
           echo "Source Branch   : ${{ github.head_ref }}"
-          echo "Target Branch   : develop"
-          echo "Target Org      : QA"
+          echo "Target Branch   : main"
+          echo "Target Org      : PROD"
           echo "Validation Type : Dry Run"
           echo "Test Level      : RunSpecifiedTests"
           echo "Tests           : EmployeeTest"
@@ -95,7 +95,7 @@ jobs:
           echo ""
 
           sf project deploy start \
-            --target-org QA_ORG \
+            --target-org PROD_ORG \
             --dry-run \
             --test-level RunSpecifiedTests \
             --tests EmployeeTest \
@@ -103,8 +103,8 @@ jobs:
 
           echo ""
           echo "=============================================="
-          echo "       PR VALIDATION SUCCESSFUL"
+          echo "     PRODUCTION VALIDATION SUCCESSFUL"
           echo "=============================================="
-          echo "The changes passed Salesforce validation."
-          echo "The PR is safe to proceed to the next gate."
-          echo "=============================================="git status
+          echo "The release passed production validation."
+          echo "The PR can proceed to the merge gate."
+          echo "=============================================="

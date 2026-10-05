@@ -1,9 +1,9 @@
-name: PR to Develop
+name: Validate Release for UAT
 
 on:
-  pull_request:
+  push:
     branches:
-      - develop
+      - 'release/*'
 
 jobs:
   validate:
@@ -14,18 +14,18 @@ jobs:
       # --------------------------------------------------
       # 1. CHECKOUT
       # --------------------------------------------------
-      - name: Checkout code
+      - name: Checkout release branch
         uses: actions/checkout@v4
 
       - name: Show validation information
         run: |
           echo "=============================================="
-          echo "        SALESFORCE PR VALIDATION"
+          echo "       UAT RELEASE VALIDATION"
           echo "=============================================="
-          echo "Source Branch : ${{ github.head_ref }}"
-          echo "Target Branch : develop"
-          echo "Target Org    : QA"
-          echo "Trigger       : Pull Request"
+          echo "Release Branch : ${{ github.ref_name }}"
+          echo "Target Org     : UAT"
+          echo "Action         : Validate Only"
+          echo "Trigger        : Release Branch Push"
           echo "=============================================="
 
       # --------------------------------------------------
@@ -46,17 +46,17 @@ jobs:
       # --------------------------------------------------
       # 3. AUTHENTICATE
       # --------------------------------------------------
-      - name: Authenticate to QA
+      - name: Authenticate to UAT
         run: |
           echo "=============================================="
-          echo "Authenticating to QA Salesforce Org"
+          echo "Authenticating to UAT Salesforce Org"
           echo "=============================================="
 
-          echo "${{ secrets.QA_SF_AUTH_URL }}" > auth-url.txt
+          echo "${{ secrets.UAT_SF_AUTH_URL }}" > auth-url.txt
 
           sf org login sfdx-url \
             --sfdx-url-file auth-url.txt \
-            --alias QA_ORG
+            --alias UAT_ORG
 
           echo ""
           echo "Authentication successful."
@@ -76,26 +76,26 @@ jobs:
           echo "=============================================="
 
       # --------------------------------------------------
-      # 5. VALIDATE
+      # 5. VALIDATE ONLY
       # --------------------------------------------------
-      - name: Validate Salesforce deployment
+      - name: Validate release against UAT
         run: |
           echo "=============================================="
-          echo "      STARTING PR VALIDATION"
+          echo "       STARTING UAT VALIDATION"
           echo "=============================================="
-          echo "Source Branch   : ${{ github.head_ref }}"
-          echo "Target Branch   : develop"
-          echo "Target Org      : QA"
-          echo "Validation Type : Dry Run"
-          echo "Test Level      : RunSpecifiedTests"
-          echo "Tests           : EmployeeTest"
+          echo "Release Branch   : ${{ github.ref_name }}"
+          echo "Target Org       : UAT"
+          echo "Validation Type  : Dry Run"
+          echo "Test Level       : RunSpecifiedTests"
+          echo "Tests            : EmployeeTest"
+          echo "Deployment       : NO"
           echo "=============================================="
           echo ""
           echo "Starting Salesforce validation..."
           echo ""
 
           sf project deploy start \
-            --target-org QA_ORG \
+            --target-org UAT_ORG \
             --dry-run \
             --test-level RunSpecifiedTests \
             --tests EmployeeTest \
@@ -103,8 +103,8 @@ jobs:
 
           echo ""
           echo "=============================================="
-          echo "       PR VALIDATION SUCCESSFUL"
+          echo "       UAT VALIDATION SUCCESSFUL"
           echo "=============================================="
-          echo "The changes passed Salesforce validation."
-          echo "The PR is safe to proceed to the next gate."
-          echo "=============================================="git status
+          echo "Release passed UAT validation."
+          echo "No changes were deployed to UAT."
+          echo "=============================================="
